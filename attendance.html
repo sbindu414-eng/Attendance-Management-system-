@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Roll Call — Attendance Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#1E2A22;
+    --paper-alt:#243A2C;
+    --paper-alt2:#2A4232;
+    --chalk:#ECE7DA;
+    --chalk-dim:#9FB0A2;
+    --present:#8FBF9F;
+    --present-dim:#5C8468;
+    --absent:#E0897C;
+    --absent-dim:#A65B50;
+    --accent:#E8C468;
+    --rule:rgba(236,231,218,0.14);
+    --rule-strong:rgba(236,231,218,0.28);
+  }
+  *{box-sizing:border-box;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+  }
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(255,255,255,0.03), transparent 60%),
+      var(--paper);
+    color:var(--chalk);
+    font-family:'JetBrains Mono', monospace;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size:3px 3px;
+    opacity:0.5;
+  }
+  .app{
+    position:relative; z-index:1;
+    max-width:880px; margin:0 auto;
+    padding:28px 18px 60px;
+  }
+  header.top{
+    text-align:center; margin-bottom:22px;
+    border-bottom:2px dashed var(--rule-strong);
+    padding-bottom:18px;
+  }
+  header.top h1{
+    font-family:'Kalam', cursive;
+    font-weight:700;
+    font-size:2.6rem;
+    margin:0 0 4px;
+    color:var(--chalk);
+    letter-spacing:0.5px;
+    transform:rotate(-0.6deg);
+  }
+  header.top p{
+    margin:0; color:var(--chalk-dim);
+    font-size:0.85rem;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+  }
+  nav.tabs{
+    display:flex; gap:8px; flex-wrap:wrap;
+    justify-content:center; margin-bottom:24px;
+  }
+  nav.tabs button{
+    font-family:'Kalam', cursive;
+    font-size:1.05rem;
+    background:transparent;
+    border:2px solid var(--rule-strong);
+    color:var(--chalk-dim);
+    padding:8px 18px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:all 0.15s ease;
+  }
+  nav.tabs button:hover{ color:var(--chalk); border-color:var(--chalk-dim); }
+  nav.tabs button.active{
+    color:var(--paper);
+    background:var(--chalk);
+    border-color:var(--chalk);
+  }
+  nav.tabs button:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  section{ display:none; }
+  section.active{ display:block; animation:fadeIn 0.25s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{
+    background:var(--paper-alt);
+    border:1px solid var(--rule);
+    border-radius:6px;
+    padding:18px;
+    margin-bottom:18px;
+  }
+  .card h2{
+    font-family:'Kalam', cursive;
+    font-size:1.3rem;
+    margin:0 0 14px;
+    color:var(--accent);
+    display:flex; align-items:center; gap:8px;
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  label{ font-size:0.78rem; color:var(--chalk-dim); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:4px;}
+  input[type=text], input[type=date], select{
+    background:var(--paper);
+    border:1px solid var(--rule-strong);
+    color:var(--chalk);
+    padding:9px 10px;
+    border-radius:4px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.9rem;
+  }
+  input::placeholder{ color:var(--chalk-dim); opacity:0.6; }
+  .field{ display:flex; flex-direction:column; }
+  button.btn{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:600;
+    font-size:0.85rem;
+    background:var(--chalk);
+    color:var(--paper);
+    border:none;
+    padding:10px 16px;
+    border-radius:4px;
+    cursor:pointer;
+    letter-spacing:0.5px;
+    transition:transform 0.1s ease;
+  }
+  button.btn:hover{ transform:translateY(-1px); }
+  button.btn.ghost{
+    background:transparent; color:var(--chalk); border:1px solid var(--rule-strong);
+  }
+  button.btn.danger{ background:var(--absent-dim); color:var(--chalk); }
+
+  /* Roll call table */
+  table.roll{ width:100%; border-collapse:collapse; }
+  table.roll th{
+    text-align:left; font-size:0.72rem; color:var(--chalk-dim);
+    text-transform:uppercase; letter-spacing:1px;
+    padding:6px 8px; border-bottom:1px solid var(--rule-strong);
+  }
+  table.roll td{
+    padding:9px 8px; border-bottom:1px dashed var(--rule);
+    font-size:0.92rem;
+  }
+  table.roll tr:last-child td{ border-bottom:none; }
+  .roll-id{ color:var(--chalk-dim); font-size:0.8rem; }
+  .stamp-group{ display:flex; gap:8px; }
+  .stamp{
+    width:38px; height:38px; border-radius:50%;
+    border:2px solid var(--rule-strong);
+    background:transparent; color:var(--chalk-dim);
+    font-family:'Kalam', cursive; font-weight:700; font-size:1rem;
+    cursor:pointer; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform 0.08s ease;
+  }
+  .stamp:hover{ transform:scale(1.06); }
+  .stamp.p.active{
+    border-color:var(--present); color:var(--present);
+    background:rgba(143,191,159,0.12);
+    box-shadow:0 0 0 2px rgba(143,191,159,0.15);
+    animation:stampDown 0.18s ease;
+  }
+  .stamp.a.active{
+    border-color:var(--absent); color:var(--absent);
+    background:rgba(224,137,124,0.12);
+    box-shadow:0 0 0 2px rgba(224,137,124,0.15);
+    animation:stampDown 0.18s ease;
+  }
+  @keyframes stampDown{
+    0%{ transform:scale(1.5) rotate(-8deg); opacity:0.3;}
+    60%{ transform:scale(0.92) rotate(3deg); opacity:1;}
+    100%{ transform:scale(1) rotate(0deg);}
+  }
+  .empty{ color:var(--chalk-dim); font-size:0.88rem; padding:10px 2px; }
+
+  /* command bar */
+  .command-bar{
+    display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;
+  }
+  .command-bar input{ flex:1; min-width:220px; }
+  .cmd-hint{ font-size:0.75rem; color:var(--chalk-dim); margin-top:8px; }
+  .cmd-hint code{ background:var(--paper); padding:1px 5px; border-radius:3px; color:var(--accent); }
+  .cmd-feedback{ font-size:0.82rem; margin-top:8px; min-height:1.2em; }
+  .cmd-feedback.ok{ color:var(--present); }
+  .cmd-feedback.err{ color:var(--absent); }
+
+  /* reports */
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px; }
+  .stat{
+    background:var(--paper); border:1px solid var(--rule);
+    border-radius:6px; padding:12px 14px;
+  }
+  .stat .num{ font-family:'Kalam',cursive; font-size:1.6rem; color:var(--accent); }
+  .stat .lbl{ font-size:0.72rem; color:var(--chalk-dim); text-transform:uppercase; letter-spacing:1px; }
+
+  .pct-bar-wrap{ background:var(--paper); border-radius:20px; height:10px; overflow:hidden; border:1px solid var(--rule); }
+  .pct-bar{ height:100%; border-radius:20px; }
+
+  .tag{
+    display:inline-block; font-size:0.68rem; padding:2px 8px; border-radius:20px;
+    text-transform:uppercase; letter-spacing:0.5px; font-weight:600;
+  }
+  .tag.ok{ background:rgba(143,191,159,0.15); color:var(--present); border:1px solid var(--present-dim); }
+  .tag.short{ background:rgba(224,137,124,0.15); color:var(--absent); border:1px solid var(--absent-dim); }
+
+  .threshold-row{ display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .threshold-row input{ width:70px; }
+
+  footer.note{
+    text-align:center; color:var(--chalk-dim); font-size:0.72rem; margin-top:26px;
+    letter-spacing:0.5px;
+  }
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background:var(--rule-strong); border-radius:4px; }
+
+  @media (max-width:520px){
+    header.top h1{ font-size:2.1rem; }
+    .row{ gap:8px; }
+    table.roll th:nth-child(1), table.roll td:nth-child(1){ display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Roll Call</h1>
+    <p>Attendance Register</p>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="mark" class="active">Mark</button>
+    <button data-tab="reports">Reports</button>
+    <button data-tab="students">Students</button>
+  </nav>
+
+  <!-- MARK TAB -->
+  <section id="tab-mark" class="active">
+    <div class="card">
+      <h2>Quick command</h2>
+      <div class="command-bar">
+        <div class="field" style="flex:1;">
+          <label for="cmdInput">Command</label>
+          <input type="text" id="cmdInput" placeholder="MARK S01 2026-08-19 P" autocomplete="off" />
+        </div>
+        <button class="btn" id="cmdRun">Run</button>
+      </div>
+      <div class="cmd-hint">Format: <code>MARK &lt;roll-no&gt; &lt;yyyy-mm-dd&gt; &lt;P|A&gt;</code></div>
+      <div class="cmd-feedback" id="cmdFeedback"></div>
+    </div>
+
+    <div class="card">
+      <h2>Take roll call</h2>
+      <div class="row" style="margin-bottom:14px;">
+        <div class="field">
+          <label for="rollDate">Date</label>
+          <input type="date" id="rollDate" />
+        </div>
+      </div>
+      <div id="rollTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- REPORTS TAB -->
+  <section id="tab-reports">
+    <div class="card">
+      <h2>Date-wise report</h2>
+      <div class="row" style="margin-bottom:12px;">
+        <div class="field">
+          <label for="reportDate">Date</label>
+          <input type="date" id="reportDate" />
+        </div>
+      </div>
+      <div id="dateReportWrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Attendance % and shortage</h2>
+      <div class="threshold-row">
+        <label style="margin:0;" for="threshold">Required %</label>
+        <input type="text" id="threshold" value="75" />
+        <button class="btn ghost" id="applyThreshold">Apply</button>
+      </div>
+      <div id="statGrid" class="stat-grid"></div>
+      <div id="pctTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- STUDENTS TAB -->
+  <section id="tab-students">
+    <div class="card">
+      <h2>Add student</h2>
+      <div class="row">
+        <div class="field">
+          <label for="newId">Roll no.</label>
+          <input type="text" id="newId" placeholder="S01" />
+        </div>
+        <div class="field" style="flex:1; min-width:160px;">
+          <label for="newName">Name</label>
+          <input type="text" id="newName" placeholder="Full name" />
+        </div>
+        <button class="btn" id="addStudentBtn" style="align-self:flex-end;">Add</button>
+      </div>
+      <div class="cmd-feedback" id="studentFeedback"></div>
+    </div>
+    <div class="card">
+      <h2>Class roster</h2>
+      <div id="studentListWrap"></div>
+    </div>
+  </section>
+
+  <footer class="note">Data is stored privately for you and stays on this device's account.</footer>
+</div>
+
+<script>
+(function(){
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+
+  let students = [];          // [{id, name}]
+  let attendance = {};        // { date: { studentId: 'P' | 'A' } }
+  let threshold = 75;
+  let loaded = false;
+
+  function todayStr(){
+    const d = new Date();
+    const off = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - off*60000);
+    return local.toISOString().slice(0,10);
+  }
+
+  async function loadState(){
+    try{
+      const s = await window.storage.get('students');
+      students = s && s.value ? JSON.parse(s.value) : [];
+    }catch(e){ students = []; }
+    try{
+      const a = await window.storage.get('attendance');
+      attendance = a && a.value ? JSON.parse(a.value) : {};
+    }catch(e){ attendance = {}; }
+    try{
+      const t = await window.storage.get('threshold');
+      threshold = t && t.value ? JSON.parse(t.value) : 75;
+    }catch(e){ threshold = 75; }
+    loaded = true;
+  }
+
+  async function saveStudents(){
+    try{ await window.storage.set('students', JSON.stringify(students), false); }
+    catch(e){ console.error('save students failed', e); }
+  }
+  async function saveAttendance(){
+    try{ await window.storage.set('attendance', JSON.stringify(attendance), false); }
+    catch(e){ console.error('save attendance failed', e); }
+  }
+  async function saveThreshold(){
+    try{ await window.storage.set('threshold', JSON.stringify(threshold), false); }
+    catch(e){ console.error('save threshold failed', e); }
+  }
+
+  function setMark(studentId, date, mark){
+    if(!attendance[date]) attendance[date] = {};
+    attendance[date][studentId] = mark;
+  }
+
+  function studentStats(studentId){
+    let present = 0, total = 0;
+    for(const date in attendance){
+      const rec = attendance[date][studentId];
+      if(rec === 'P' || rec === 'A'){
+        total++;
+        if(rec === 'P') present++;
+      }
+    }
+    const pct = total > 0 ? (present/total*100) : null;
+    return { present, total, pct };
+  }
+
+  function shortageMessage(present, total, pct){
+    if(total === 0) return 'No records yet';
+    const T = threshold/100;
+    if(pct >= threshold){
+      const maxSkippable = Math.floor(present/T - total);
+      if(maxSkippable > 0){
+        return `Can miss ${maxSkippable} more class${maxSkippable===1?'':'es'} and stay above ${threshold}%`;
+      }
+      return `At the edge — no more misses allowed`;
+    }else{
+      const needed = Math.ceil((T*total - present) / (1 - T));
+      return `Needs ${needed} more present day${needed===1?'':'s'} to reach ${threshold}%`;
+    }
+  }
+
+  // ---------- RENDER: MARK TAB ----------
+  function renderRoll(){
+    const date = $('#rollDate').value || todayStr();
+    const wrap = $('#rollTableWrap');
+    if(students.length === 0){
+      wrap.innerHTML = '<div class="empty">No students yet — add some in the Students tab.</div>';
+      return;
+    }
+    const dayRec = attendance[date] || {};
+    let rows = students.map(st => {
+      const mark = dayRec[st.id];
+      return `<tr data-id="${st.id}">
+        <td class="roll-id">${escapeHtml(st.id)}</td>
+        <td>${escapeHtml(st.name)}</td>
+        <td>
+          <div class="stamp-group">
+            <button class="stamp p ${mark==='P'?'active':''}" data-mark="P" title="Present">P</button>
+            <button class="stamp a ${mark==='A'?'active':''}" data-mark="A" title="Absent">A</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table class="roll">
+      <thead><tr><th>Roll</th><th>Name</th><th>Mark</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    wrap.querySelectorAll('.stamp').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const tr = btn.closest('tr');
+        const id = tr.getAttribute('data-id');
+        const mark = btn.getAttribute('data-mark');
+        setMark(id, date, mark);
+        await saveAttendance();
+        renderRoll();
+        if($('#tab-reports').classList.contains('active')) { renderDateReport(); renderPctReport(); }
+      });
+    });
+  }
+
+  // ---------- RENDER: REPORTS TAB ----------
+  function renderDateReport(){
+    const date = $('#reportDate').value || todayStr();
+    const wrap = $('#dateReportWrap');
+    const dayRec = attendance[date] || {};
+    if(students.length === 0){
+      wrap.innerHTML = '<div class="empty">No students yet.</div>';
+      return;
+    }
+    let presentCount = 0, absentCount = 0, unmarked = 0;
+    let rows = students.map(st => {
+      const mark = dayRec[st.id];
+      if(mark === 'P') presentCount++;
+      else if(mark === 'A') absentCount++;
+      else unmarked++;
+      const tagHtml = mark === 'P'
+        ? '<span class="tag ok">Present</span>'
+        : mark === 'A'
+          ? '<span class="tag short">Absent</span>'
+          : '<span class="cmd-hint" style="margin:0;">not marked</span>';
+      return `<tr><td class="roll-id">${escapeHtml(st.id)}</td><td>${escapeHtml(st.name)}</td><td>${tagHtml}</td></tr>`;
+    }).join('');
+    wrap.innerHTML = `
+      <div class="stat-grid" style="margin-bottom:14px;">
+        <div class="stat"><div class="num">${presentCount}</div><div class="lbl">Present</div></div>
+        <div class="stat"><div class="num">${absentCount}</div><div class="lbl">Absent</div></div>
+        <div class="stat"><div class="num">${unmarked}</div><div class="lbl">Unmarked</div></div>
+      </div>
+      <table class="roll"><thead><tr><th>Roll</th><th>Name</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  function renderPctReport(){
+    const statGrid = $('#statGrid');
+    const wrap = $('#pctTableWrap');
+    if(students.length === 0){
+      statGrid.innerHTML = '';
+      wrap.innerHTML = '<div class="empty">No students yet.</div>';
+      return;
+    }
+    let shortageCount = 0;
+    const rowsData = students.map(st => {
+      const { present, total, pct } = studentStats(st.id);
+      const isShort = pct !== null && pct < threshold;
+      if(isShort) shortageCount++;
+      return { st, present, total, pct, isShort };
+    });
+
+    statGrid.innerHTML = `
+      <div class="stat"><div class="num">${students.length}</div><div class="lbl">Students</div></div>
+      <div class="stat"><div class="num">${Object.keys(attendance).length}</div><div class="lbl">Days recorded</div></div>
+      <div class="stat"><div class="num">${shortageCount}</div><div class="lbl">Below ${threshold}%</div></div>
+    `;
+
+    const rows = rowsData.map(({st, present, total, pct, isShort}) => {
+      const pctLabel = pct === null ? '—' : pct.toFixed(1) + '%';
+      const barColor = pct === null ? 'var(--rule-strong)' : (isShort ? 'var(--absent)' : 'var(--present)');
+      const barWidth = pct === null ? 0 : Math.min(100, pct);
+      const tag = pct === null ? '' : (isShort ? '<span class="tag short">Shortage</span>' : '<span class="tag ok">OK</span>');
+      const msg = shortageMessage(present, total, pct);
+      return `<tr>
+        <td class="roll-id">${escapeHtml(st.id)}</td>
+        <td>${escapeHtml(st.name)}<div class="cmd-hint" style="margin-top:3px;">${present}/${total} · ${msg}</div></td>
+        <td style="min-width:120px;">
+          <div class="pct-bar-wrap"><div class="pct-bar" style="width:${barWidth}%; background:${barColor};"></div></div>
+          <div style="margin-top:4px; font-size:0.8rem;">${pctLabel} ${tag}</div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `<table class="roll"><thead><tr><th>Roll</th><th>Name</th><th>Attendance</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+
+  // ---------- RENDER: STUDENTS TAB ----------
+  function renderStudentList(){
+    const wrap = $('#studentListWrap');
+    if(students.length === 0){
+      wrap.innerHTML = '<div class="empty">No students added yet.</div>';
+      return;
+    }
+    const rows = students.map(st => {
+      const { present, total, pct } = studentStats(st.id);
+      const pctLabel = pct === null ? '—' : pct.toFixed(1) + '%';
+      return `<tr data-id="${st.id}">
+        <td class="roll-id">${escapeHtml(st.id)}</td>
+        <td>${escapeHtml(st.name)}</td>
+        <td>${pctLabel}</td>
+        <td><button class="btn danger" data-remove="${st.id}">Remove</button></td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table class="roll"><thead><tr><th>Roll</th><th>Name</th><th>Attend %</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+
+    wrap.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-remove');
+        students = students.filter(s => s.id !== id);
+        for(const date in attendance){ delete attendance[date][id]; }
+        await saveStudents();
+        await saveAttendance();
+        renderAll();
+      });
+    });
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderAll(){
+    renderRoll();
+    renderDateReport();
+    renderPctReport();
+    renderStudentList();
+  }
+
+  // ---------- TABS ----------
+  $$('.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.tabs button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      $$('section').forEach(s => s.classList.remove('active'));
+      $('#tab-' + btn.getAttribute('data-tab')).classList.add('active');
+      renderAll();
+    });
+  });
+
+  // ---------- ADD STUDENT ----------
+  $('#addStudentBtn').addEventListener('click', async () => {
+    const idInput = $('#newId');
+    const nameInput = $('#newName');
+    const id = idInput.value.trim();
+    const name = nameInput.value.trim();
+    const fb = $('#studentFeedback');
+    if(!id || !name){
+      fb.textContent = 'Enter both a roll number and a name.';
+      fb.className = 'cmd-feedback err';
+      return;
+    }
+    if(students.find(s => s.id.toLowerCase() === id.toLowerCase())){
+      fb.textContent = `Roll number ${id} already exists.`;
+      fb.className = 'cmd-feedback err';
+      return;
+    }
+    students.push({ id, name });
+    await saveStudents();
+    idInput.value = ''; nameInput.value = '';
+    fb.textContent = `Added ${name} (${id}).`;
+    fb.className = 'cmd-feedback ok';
+    renderAll();
+  });
+
+  // ---------- COMMAND BAR ----------
+  async function runCommand(){
+    const input = $('#cmdInput');
+    const fb = $('#cmdFeedback');
+    const raw = input.value.trim();
+    const match = raw.match(/^MARK\s+(\S+)\s+(\d{4}-\d{2}-\d{2})\s+([PApa])$/);
+    if(!match){
+      fb.textContent = 'Could not parse that. Try: MARK S01 2026-08-19 P';
+      fb.className = 'cmd-feedback err';
+      return;
+    }
+    const [, rollNo, date, markRaw] = match;
+    const mark = markRaw.toUpperCase();
+    const student = students.find(s => s.id.toLowerCase() === rollNo.toLowerCase());
+    if(!student){
+      fb.textContent = `No student with roll number ${rollNo}. Add them in the Students tab first.`;
+      fb.className = 'cmd-feedback err';
+      return;
+    }
+    setMark(student.id, date, mark);
+    await saveAttendance();
+    fb.textContent = `Marked ${student.name} (${student.id}) as ${mark === 'P' ? 'Present' : 'Absent'} on ${date}.`;
+    fb.className = 'cmd-feedback ok';
+    input.value = '';
+    $('#rollDate').value = date;
+    renderAll();
+  }
+  $('#cmdRun').addEventListener('click', runCommand);
+  $('#cmdInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') runCommand(); });
+
+  // ---------- DATE INPUTS ----------
+  $('#rollDate').addEventListener('change', renderRoll);
+  $('#reportDate').addEventListener('change', renderDateReport);
+
+  // ---------- THRESHOLD ----------
+  $('#applyThreshold').addEventListener('click', async () => {
+    const val = parseFloat($('#threshold').value);
+    if(!isNaN(val) && val > 0 && val <= 100){
+      threshold = val;
+      await saveThreshold();
+      renderPctReport();
+    }
+  });
+
+  // ---------- INIT ----------
+  async function init(){
+    const today = todayStr();
+    $('#rollDate').value = today;
+    $('#reportDate').value = today;
+    await loadState();
+    $('#threshold').value = threshold;
+    renderAll();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
